@@ -159,7 +159,7 @@ function Show-EMDynamicGroups
         if(-not $script:dynamicGroupsPanel) { return }
 
         $global:btnCreateAutopilotPilotGroup.Add_Click({
-            New-EMAutopilotPilotDynamicGroup
+            New-EMAutopilotDynamicGroup
         })
     }
 
@@ -167,43 +167,96 @@ function Show-EMDynamicGroups
     $global:grdToolsMain.Children.Add($script:dynamicGroupsPanel)
 }
 
-function New-EMAutopilotPilotDynamicGroup
+function New-EMAutopilotDynamicGroup
 {
-    $groupName = "Intune-Win-Devices-Autopilot Pilot Group"
-    $membershipRule = '(device.devicePhysicalIds -any (_ -eq "[OrderID]:Pilot"))'
+    $groupName = $global:txtAutopilotGroupName.Text.Trim()
+    $groupTag = $global:txtAutopilotGroupTag.Text.Trim()
+    $addToDefaultAppsPolicies = $global:chkAddToDefaultAppsPolicies.IsChecked -eq $true
+    $membershipRule = "(device.devicePhysicalIds -any (_ -eq `"[OrderID]:$groupTag`"))"
+    $defaultAppsAndPoliciesGroupName = "Intune-Default Apps and Policies"
+
+    if(-not $groupTag)
+    {
+        Show-Error "Group tag is required."
+        return
+    }
+    if(-not $groupName)
+    {
+        Show-Error "Group name is required."
+        return
+    }
+
     Write-Status "Creating dynamic group $groupName"
 
     try
     {
         $existingGroup = (Invoke-GraphRequest "/groups?`$filter=displayName eq '$groupName'" -NoError).value
+        $targetGroup = $null
         if($existingGroup)
         {
             Show-InfoMessage "Group '$groupName' already exists."
-            Write-Status ""
-            return
-        }
-
-        $mailNickName = ("IntuneWinDevicesAutopilotPilotGroup" + (Get-Date -Format "yyMMddHHmmss"))
-        $groupObj = @{
-            displayName = $groupName
-            description = "Dynamic device group for Autopilot pilot devices"
-            mailEnabled = $false
-            mailNickname = $mailNickName
-            securityEnabled = $true
-            groupTypes = @("DynamicMembership")
-            membershipRule = $membershipRule
-            membershipRuleProcessingState = "On"
-        }
-        $groupJson = ConvertTo-Json $groupObj -Depth 5
-        $createdGroup = Invoke-GraphRequest "/groups" -HttpMethod "POST" -Content $groupJson -NoError
-
-        if($createdGroup.Id)
-        {
-            Show-InfoMessage "Group '$groupName' created successfully."
+            $targetGroup = $existingGroup[0]
         }
         else
         {
-            Show-Error "Failed to create group '$groupName'."
+            $safeMailNicknamePrefix = (($groupName -replace "[^a-zA-Z0-9]","").Trim())
+            if(-not $safeMailNicknamePrefix) { $safeMailNicknamePrefix = "IntuneAutopilotGroup" }
+            if($safeMailNicknamePrefix.Length -gt 45) { $safeMailNicknamePrefix = $safeMailNicknamePrefix.Substring(0,45) }
+            $mailNickName = ($safeMailNicknamePrefix + (Get-Date -Format "yyMMddHHmmss"))
+
+            $groupObj = @{
+                displayName = $groupName
+                description = "Dynamic device group for Autopilot tag '$groupTag'"
+                mailEnabled = $false
+                mailNickname = $mailNickName
+                securityEnabled = $true
+                groupTypes = @("DynamicMembership")
+                membershipRule = $membershipRule
+                membershipRuleProcessingState = "On"
+            }
+            $groupJson = ConvertTo-Json $groupObj -Depth 5
+            $createdGroup = Invoke-GraphRequest "/groups" -HttpMethod "POST" -Content $groupJson -NoError
+
+            if($createdGroup.Id)
+            {
+                Show-InfoMessage "Group '$groupName' created successfully."
+                $targetGroup = $createdGroup
+            }
+            else
+            {
+                Show-Error "Failed to create group '$groupName'."
+                return
+            }
+        }
+
+        if($addToDefaultAppsPolicies -and $targetGroup -and $targetGroup.Id)
+        {
+            $parentGroup = (Invoke-GraphRequest "/groups?`$filter=displayName eq '$defaultAppsAndPoliciesGroupName'" -NoError).value | Select-Object -First 1
+            if(-not $parentGroup)
+            {
+                $parentMailNickName = ("IntuneDefaultAppsPolicies" + (Get-Date -Format "yyMMddHHmmss"))
+                $parentGroupObj = @{
+                    displayName = $defaultAppsAndPoliciesGroupName
+                    description = "Assigned security group for default Intune app and policy targeting"
+                    mailEnabled = $false
+                    mailNickname = $parentMailNickName
+                    securityEnabled = $true
+                }
+                $parentGroup = Invoke-GraphRequest "/groups" -HttpMethod "POST" -Content (ConvertTo-Json $parentGroupObj -Depth 5) -NoError
+            }
+
+            if($parentGroup -and $parentGroup.Id)
+            {
+                $refBody = @{
+                    "@odata.id" = "https://graph.microsoft.com/v1.0/directoryObjects/$($targetGroup.Id)"
+                }
+                $null = Invoke-GraphRequest "/groups/$($parentGroup.Id)/members/`$ref" -HttpMethod "POST" -Content (ConvertTo-Json $refBody -Depth 5) -NoError
+                Show-InfoMessage "Group '$groupName' is now a member of '$defaultAppsAndPoliciesGroupName'."
+            }
+            else
+            {
+                Show-Error "Could not create or locate '$defaultAppsAndPoliciesGroupName'."
+            }
         }
     }
     catch
