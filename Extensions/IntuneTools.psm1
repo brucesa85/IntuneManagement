@@ -169,9 +169,9 @@ function Show-EMDynamicGroups
 
 function New-EMAutopilotDynamicGroup
 {
-    $groupName = $global:txtAutopilotGroupName.Text.Trim()
     $groupTag = $global:txtAutopilotGroupTag.Text.Trim()
     $addToDefaultAppsPolicies = $global:chkAddToDefaultAppsPolicies.IsChecked -eq $true
+    $groupName = "Intune-Win-Devices-Autopilot Pilot $groupTag Group"
     $membershipRule = "(device.devicePhysicalIds -any (_ -eq `"[OrderID]:$groupTag`"))"
     $defaultAppsAndPoliciesGroupName = "Intune-Default Apps and Policies"
 
@@ -180,12 +180,6 @@ function New-EMAutopilotDynamicGroup
         Show-Error "Group tag is required."
         return
     }
-    if(-not $groupName)
-    {
-        Show-Error "Group name is required."
-        return
-    }
-
     Write-Status "Creating dynamic group $groupName"
 
     try

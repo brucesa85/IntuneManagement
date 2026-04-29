@@ -3,7 +3,6 @@
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
         <RowDefinition Height="Auto" />
-        <RowDefinition Height="Auto" />
         <RowDefinition Height="*" />
         <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
@@ -19,22 +18,20 @@
     <TextBox Grid.Row="1" Grid.Column="1" Name="txtAutopilotGroupTag" Text="Pilot"
              ToolTip="OrderID tag used in membership rule, e.g. Pilot" />
 
-    <Label Grid.Row="2" Grid.Column="0" Content="Group name" VerticalAlignment="Center" Margin="0,8,8,0" />
-    <TextBox Grid.Row="2" Grid.Column="1" Name="txtAutopilotGroupName" Margin="0,8,0,0"
-             Text="Intune-Win-Devices-Autopilot Pilot Group"
-             ToolTip="Display name for the dynamic device group." />
+    <TextBlock Grid.Row="2" Grid.ColumnSpan="2" Margin="0,8,0,0" TextWrapping="Wrap"
+               Text="Group name format: Intune-Win-Devices-Autopilot Pilot &lt;GroupTag&gt; Group" />
 
-    <CheckBox Grid.Row="3" Grid.Column="1" Name="chkAddToDefaultAppsPolicies" Margin="0,8,0,0"
+    <CheckBox Grid.Row="2" Grid.Column="1" Name="chkAddToDefaultAppsPolicies" Margin="0,32,0,0"
               Content="Add this group to Intune-Default Apps and Policies (create parent group if missing)"
               IsChecked="True" />
 
-    <Button Grid.Row="4" Grid.Column="1" Name="btnCreateAutopilotPilotGroup"
+    <Button Grid.Row="3" Grid.Column="1" Name="btnCreateAutopilotPilotGroup"
             Content="Create Dynamic Device Group"
             Margin="0,10,0,0"
             MinWidth="260"
             HorizontalAlignment="Left"
             ToolTip="Create dynamic device group using the entered tag and name." />
 
-    <TextBlock Grid.Row="5" Grid.ColumnSpan="2" Margin="0,8,0,0" TextWrapping="Wrap"
+    <TextBlock Grid.Row="4" Grid.ColumnSpan="2" Margin="0,8,0,0" TextWrapping="Wrap"
                Text="Rule format: (device.devicePhysicalIds -any (_ -eq &quot;[OrderID]:&lt;GroupTag&gt;&quot;))" />
 </Grid>
