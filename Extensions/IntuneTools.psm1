@@ -106,6 +106,15 @@ function Add-EMToolsViewItem
             Icon="DeviceConfiguration"
             ShowViewItem = { Show-ADMXRegValues }
         })
+
+        Add-ViewItem (New-Object PSObject -Property @{
+            Title = "Dynamic Groups"
+            Id = "EMDynamicGroups"
+            ViewID = "EMTools"
+            Permissons=@("Group.ReadWrite.All")
+            Icon="Azure"
+            ShowViewItem = { Show-EMDynamicGroups }
+        })
     }
 
     if($viewItem)
@@ -139,6 +148,71 @@ function Show-EMTool
     else
     {
         $global:grdToolsMain.Children.Clear()
+    }
+}
+
+function Show-EMDynamicGroups
+{
+    if(-not $script:dynamicGroupsPanel)
+    {
+        $script:dynamicGroupsPanel = Get-XamlObject ($global:AppRootFolder + "\Xaml\EndpointManagerToolsDynamicGroups.xaml") -AddVariables
+        if(-not $script:dynamicGroupsPanel) { return }
+
+        $global:btnCreateAutopilotPilotGroup.Add_Click({
+            New-EMAutopilotPilotDynamicGroup
+        })
+    }
+
+    $global:grdToolsMain.Children.Clear()
+    $global:grdToolsMain.Children.Add($script:dynamicGroupsPanel)
+}
+
+function New-EMAutopilotPilotDynamicGroup
+{
+    $groupName = "Intune-Win-Devices-Autopilot Pilot Group"
+    $membershipRule = '(device.devicePhysicalIds -any (_ -eq "[OrderID]:Pilot"))'
+    Write-Status "Creating dynamic group $groupName"
+
+    try
+    {
+        $existingGroup = (Invoke-GraphRequest "/groups?`$filter=displayName eq '$groupName'" -NoError).value
+        if($existingGroup)
+        {
+            Show-InfoMessage "Group '$groupName' already exists."
+            Write-Status ""
+            return
+        }
+
+        $mailNickName = ("IntuneWinDevicesAutopilotPilotGroup" + (Get-Date -Format "yyMMddHHmmss"))
+        $groupObj = @{
+            displayName = $groupName
+            description = "Dynamic device group for Autopilot pilot devices"
+            mailEnabled = $false
+            mailNickname = $mailNickName
+            securityEnabled = $true
+            groupTypes = @("DynamicMembership")
+            membershipRule = $membershipRule
+            membershipRuleProcessingState = "On"
+        }
+        $groupJson = ConvertTo-Json $groupObj -Depth 5
+        $createdGroup = Invoke-GraphRequest "/groups" -HttpMethod "POST" -Content $groupJson -NoError
+
+        if($createdGroup.Id)
+        {
+            Show-InfoMessage "Group '$groupName' created successfully."
+        }
+        else
+        {
+            Show-Error "Failed to create group '$groupName'."
+        }
+    }
+    catch
+    {
+        Show-Error $_
+    }
+    finally
+    {
+        Write-Status ""
     }
 }
 
