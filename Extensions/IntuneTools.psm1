@@ -241,6 +241,13 @@ function New-EMAutopilotDynamicGroup
 
             if($parentGroup -and $parentGroup.Id)
             {
+                $isDynamicParent = $parentGroup.groupTypes -contains "DynamicMembership"
+                if($isDynamicParent -or $parentGroup.securityEnabled -ne $true)
+                {
+                    Show-Error "'$defaultAppsAndPoliciesGroupName' exists but is not an Assigned/Security group. Update that group to a Security (assigned) group."
+                    return
+                }
+
                 $existingParentMembers = (Invoke-GraphRequest "/groups/$($parentGroup.Id)/members?`$select=id" -NoError).value
                 $isAlreadyMember = $existingParentMembers | Where-Object { $_.id -eq $targetGroup.Id } | Select-Object -First 1
                 if($isAlreadyMember)
