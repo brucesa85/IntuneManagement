@@ -257,9 +257,17 @@ function New-EMAutopilotDynamicGroup
                 }
 
                 $refBody = @{
-                    "@odata.id" = "https://graph.microsoft.com/v1.0/groups/$($targetGroup.Id)"
+                    "@odata.id" = "https://graph.microsoft.com/v1.0/directoryObjects/$($targetGroup.Id)"
                 }
-                $addMemberResult = Invoke-GraphRequest "/groups/$($parentGroup.Id)/members/`$ref" -HttpMethod "POST" -Content (ConvertTo-Json $refBody -Depth 5) -NoError
+                try
+                {
+                    $null = Invoke-GraphRequest "/groups/$($parentGroup.Id)/members/`$ref" -HttpMethod "POST" -Content (ConvertTo-Json $refBody -Depth 5)
+                }
+                catch
+                {
+                    Show-Error "Failed adding '$groupName' to '$defaultAppsAndPoliciesGroupName'. Graph error: $($_.Exception.Message)"
+                    return
+                }
 
                 # POST to members/$ref returns empty response on success. Verify membership after add.
                 $updatedParentMembers = (Invoke-GraphRequest "/groups/$($parentGroup.Id)/members?`$select=id" -NoError).value
