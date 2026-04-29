@@ -3068,6 +3068,24 @@ function Get-GraphMigrationObjectsFromFile
                             Remove-Property $groupObj $prop.Name
                         }
                         $groupObj.displayName = $groupObj.displayName.Trim()
+                        if($groupObj.mailNickname)
+                        {
+                            $groupObj.mailNickname = ($groupObj.mailNickname -replace '[^a-zA-Z0-9._-]', '')
+                        }
+                        if([string]::IsNullOrWhiteSpace($groupObj.mailNickname))
+                        {
+                            $baseNickName = ($groupObj.displayName -replace '[^a-zA-Z0-9._-]', '')
+                            if([string]::IsNullOrWhiteSpace($baseNickName))
+                            {
+                                $baseNickName = "group"
+                            }
+                            $nickDateStr = ((Get-Date).ToString("yyMMddHHmmss"))
+                            if(($baseNickName.Length + $nickDateStr.Length) -gt 64)
+                            {
+                                $baseNickName = $baseNickName.Substring(0,(64-$nickDateStr.Length))
+                            }
+                            $groupObj.mailNickname = "$($baseNickName)$($nickDateStr)"
+                        }
                         $groupJson = ConvertTo-Json $groupObj -Depth 50
                     }
                     else
@@ -3076,13 +3094,17 @@ function Get-GraphMigrationObjectsFromFile
                         Write-Log "No group object found for $groupName. Creating a cloud group with default settings" 2
                         $dateStr = ((Get-Date).ToString("yyMMddHHmmss"))
                         
-                        if(($groupName.Length + $dateStr.Length) -gt 64)
+                        # mailNickname can't contain spaces or unsupported characters.
+                        # Build a normalized fallback value from the group name.
+                        $nickName = ($groupName -replace '[^a-zA-Z0-9._-]', '')
+                        if([string]::IsNullOrWhiteSpace($nickName))
                         {
-                            $nickName = $groupName.Substring(0,(64-$dateStr.Length))
+                            $nickName = "group"
                         }
-                        else
+
+                        if(($nickName.Length + $dateStr.Length) -gt 64)
                         {
-                            $nickName = $groupName
+                            $nickName = $nickName.Substring(0,(64-$dateStr.Length))
                         }
                         $nickName = $nickName + $dateStr
                         
