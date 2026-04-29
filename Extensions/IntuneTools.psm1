@@ -151,6 +151,13 @@ function Show-EMTool
     }
 }
 
+function Show-EMToolsError
+{
+    param([string]$Message)
+
+    Write-Log $Message 3
+}
+
 function Show-EMDynamicGroups
 {
     if(-not $script:dynamicGroupsPanel)
@@ -177,7 +184,7 @@ function New-EMAutopilotDynamicGroup
 
     if(-not $groupTag)
     {
-        Show-Error "Group tag is required."
+        Show-EMToolsError "Group tag is required."
         return
     }
     Write-Status "Creating dynamic group $groupName"
@@ -218,7 +225,7 @@ function New-EMAutopilotDynamicGroup
             }
             else
             {
-                Show-Error "Failed to create group '$groupName'."
+                Show-EMToolsError "Failed to create group '$groupName'."
                 return
             }
         }
@@ -244,7 +251,7 @@ function New-EMAutopilotDynamicGroup
                 $isDynamicParent = $parentGroup.groupTypes -contains "DynamicMembership"
                 if($isDynamicParent -or $parentGroup.securityEnabled -ne $true)
                 {
-                    Show-Error "'$defaultAppsAndPoliciesGroupName' exists but is not an Assigned/Security group. Update that group to a Security (assigned) group."
+                    Show-EMToolsError "'$defaultAppsAndPoliciesGroupName' exists but is not an Assigned/Security group. Update that group to a Security (assigned) group."
                     return
                 }
 
@@ -265,7 +272,7 @@ function New-EMAutopilotDynamicGroup
                 }
                 catch
                 {
-                    Show-Error "Failed adding '$groupName' to '$defaultAppsAndPoliciesGroupName'. Graph error: $($_.Exception.Message)"
+                    Show-EMToolsError "Failed adding '$groupName' to '$defaultAppsAndPoliciesGroupName'. Graph error: $($_.Exception.Message)"
                     return
                 }
 
@@ -278,18 +285,18 @@ function New-EMAutopilotDynamicGroup
                 }
                 else
                 {
-                    Show-Error "Failed to add '$groupName' to '$defaultAppsAndPoliciesGroupName'. Ensure Group.ReadWrite.All permissions are granted."
+                    Show-EMToolsError "Failed to add '$groupName' to '$defaultAppsAndPoliciesGroupName'. Ensure Group.ReadWrite.All permissions are granted."
                 }
             }
             else
             {
-                Show-Error "Could not create or locate '$defaultAppsAndPoliciesGroupName'."
+                Show-EMToolsError "Could not create or locate '$defaultAppsAndPoliciesGroupName'."
             }
         }
     }
     catch
     {
-        Show-Error $_
+        Show-EMToolsError $_.Exception.Message
     }
     finally
     {
